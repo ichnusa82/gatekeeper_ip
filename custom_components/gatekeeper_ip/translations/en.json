@@ -1,0 +1,191 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gatekeeper IP",
+        "description": "IP addresses or networks (CIDR) that must never be banned. One per line, e.g. 192.168.1.0/24.",
+        "data": {
+          "whitelist": "Whitelist"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "One or more entries are not valid IPs or networks"
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gatekeeper IP",
+        "menu_options": {
+          "ban": "🔒 Ban IPs manually",
+          "unban": "🔓 Unban IPs",
+          "whitelist": "✅ Edit whitelist",
+          "settings": "⚙️ Settings (Telegram, IP country)",
+          "export": "📤 Export backup",
+          "import_file": "📥 Import backup"
+        }
+      },
+      "whitelist": {
+        "title": "Edit whitelist",
+        "description": "One IP or CIDR network per line.",
+        "data": {
+          "whitelist": "Whitelist"
+        }
+      },
+      "ban": {
+        "title": "Ban IPs",
+        "description": "Just type the IP address, one per line: **date and time are added automatically**.\n\nExample:\n```\n45.12.33.7\n103.55.1.9\n```\nChoose the duration: **Permanent** or timed (the IP is unbanned automatically when it expires).\n\nIPs are written to ip_bans.yaml and blocked immediately, no restart. Single IPs only, no networks.\n\nOptional: for a different date, write it after the IP, e.g. `45.12.33.7 21/11/2026 01:42`.",
+        "data": {
+          "ips": "IPs to ban",
+          "duration": "Ban duration"
+        }
+      },
+      "unban": {
+        "title": "Unban IPs",
+        "description": "Select the IPs to remove from ip_bans.yaml.",
+        "data": {
+          "ips": "Banned IPs"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "**Telegram**: on every failed login you get a message with Ban / Ban 24h / Whitelist / Ignore buttons. Requires the Telegram Bot integration. Leave Chat ID empty to use the default one.\n\n**Country and provider**: for external IPs, country and provider are looked up on the free ip-api.com service (the IP is sent to that service).",
+        "data": {
+          "telegram": "Telegram alerts with buttons",
+          "chat_id": "Telegram chat ID (optional)",
+          "geo": "Show IP country and provider"
+        }
+      },
+      "export": {
+        "title": "Export backup",
+        "description": "Save whitelist, banned IPs (with expiry) and history to a file in the /config folder.",
+        "data": {
+          "filename": "File name"
+        }
+      },
+      "import_file": {
+        "title": "Import backup",
+        "description": "Read a backup file from the /config folder and add missing banned IPs and whitelist networks. Nothing is removed.",
+        "data": {
+          "filename": "File name"
+        }
+      }
+    },
+    "error": {
+      "invalid_ip": "One or more entries are not valid IPs or networks",
+      "invalid_single_ip": "Invalid entry: {ips} — type the IP (e.g. 45.12.33.7)",
+      "whitelisted": "These IPs are whitelisted and can't be banned: {ips}",
+      "empty": "Enter at least one IP",
+      "file_not_found": "File not found in the /config folder",
+      "error": "Error: {error}"
+    },
+    "abort": {
+      "not_loaded": "Integration not loaded",
+      "no_bans": "No banned IPs",
+      "error": "Error: {error}",
+      "exported": "Backup saved to {file} ({bans} banned IPs, {whitelist} whitelist networks).",
+      "imported": "Import completed: {bans} IPs banned, {already} were already banned, {whitelist} networks added to the whitelist."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "banned_ips": {
+        "name": "Banned IPs"
+      },
+      "failed_logins": {
+        "name": "Failed logins 24h"
+      },
+      "last_event": {
+        "name": "Last event"
+      }
+    }
+  },
+  "services": {
+    "ban": {
+      "name": "Ban IP",
+      "description": "Add one or more IPs to ip_bans.yaml and block them immediately. Whitelisted IPs are skipped.",
+      "fields": {
+        "ip": {
+          "name": "IP",
+          "description": "One or more IPs, one per line. Date and time are added automatically."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Optional: the IP is unbanned when it expires. Empty = permanent."
+        }
+      }
+    },
+    "unban": {
+      "name": "Unban IP",
+      "description": "Remove the ban for an IP (or every IP in a CIDR network).",
+      "fields": {
+        "ip": {
+          "name": "IP",
+          "description": "IP or network to unban."
+        }
+      }
+    },
+    "purge_whitelisted": {
+      "name": "Unban whitelisted IPs",
+      "description": "Remove all bans for whitelisted IPs."
+    },
+    "add_to_whitelist": {
+      "name": "Add to whitelist",
+      "description": "Add an IP or network to the whitelist.",
+      "fields": {
+        "ip": {
+          "name": "IP",
+          "description": "IP or CIDR network."
+        },
+        "unban": {
+          "name": "Unban now",
+          "description": "Also remove any existing ban."
+        }
+      }
+    },
+    "remove_from_whitelist": {
+      "name": "Remove from whitelist",
+      "description": "Remove an IP or network from the whitelist.",
+      "fields": {
+        "ip": {
+          "name": "IP",
+          "description": "IP or CIDR network."
+        }
+      }
+    },
+    "export": {
+      "name": "Export backup",
+      "description": "Save whitelist, bans and history to a YAML file in the /config folder.",
+      "fields": {
+        "filename": {
+          "name": "File name",
+          "description": "Default: gatekeeper_ip_backup.yaml"
+        }
+      }
+    },
+    "import": {
+      "name": "Import backup",
+      "description": "Read a backup from the /config folder and add missing bans and whitelist entries.",
+      "fields": {
+        "filename": {
+          "name": "File name",
+          "description": "Default: gatekeeper_ip_backup.yaml"
+        }
+      }
+    },
+    "get_history": {
+      "name": "Get history",
+      "description": "Return the ban/unban history (newest first).",
+      "fields": {
+        "limit": {
+          "name": "How many events",
+          "description": "Maximum number of events (1-300)."
+        }
+      }
+    }
+  }
+}

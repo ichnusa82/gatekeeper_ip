@@ -1,0 +1,70 @@
+ban:
+  fields:
+    ip:
+      required: true
+      example: "45.12.33.7"
+      selector:
+        text:
+          multiline: true
+    duration:
+      required: false
+      example: "24:00:00"
+      selector:
+        duration:
+          enable_day: true
+
+unban:
+  fields:
+    ip:
+      required: true
+      example: "45.12.33.7"
+      selector:
+        text:
+
+purge_whitelisted:
+
+add_to_whitelist:
+  fields:
+    ip:
+      required: true
+      example: "192.168.1.0/24"
+      selector:
+        text:
+    unban:
+      default: true
+      selector:
+        boolean:
+
+remove_from_whitelist:
+  fields:
+    ip:
+      required: true
+      example: "192.168.1.50"
+      selector:
+        text:
+
+export:
+  fields:
+    filename:
+      required: false
+      example: "gatekeeper_ip_backup.yaml"
+      selector:
+        text:
+
+import:
+  fields:
+    filename:
+      required: false
+      example: "gatekeeper_ip_backup.yaml"
+      selector:
+        text:
+
+get_history:
+  fields:
+    limit:
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 300
+          mode: box
