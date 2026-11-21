@@ -5,81 +5,88 @@
 <h1 align="center">Gatekeeper IP</h1>
 
 <p align="center">
-  Whitelist, ban manuali e a tempo, avvisi Telegram con pulsanti e card per la dashboard,<br>
-  per il blocco degli indirizzi IP di <b>Home Assistant</b>.
+  <b>🇬🇧 English</b> · <a href="README.it.md">🇮🇹 Italiano</a>
+</p>
+
+<p align="center">
+  Whitelist, manual and timed bans, detailed Telegram alerts with action buttons and a dashboard card<br>
+  for the IP ban feature of <b>Home Assistant</b>.
 </p>
 
 <p align="center">
   <a href="https://github.com/hacs/integration"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg" alt="HACS Custom"></a>
   <img src="https://img.shields.io/github/v/release/ichnusa82/gatekeeper_ip" alt="Release">
-  <img src="https://img.shields.io/github/license/ichnusa82/gatekeeper_ip" alt="Licenza">
+  <img src="https://img.shields.io/github/license/ichnusa82/gatekeeper_ip" alt="License">
 </p>
 
 ---
 
-Home Assistant può bannare gli IP che sbagliano la password troppe volte, ma non ha una whitelist,
-non permette di bannare un IP a mano dall'interfaccia e per sbloccarlo bisogna modificare
-`ip_bans.yaml` e riavviare. **Gatekeeper IP** aggiunge tutto questo.
+Home Assistant can ban IPs after too many failed logins, but it has no whitelist, you can't ban an
+IP manually from the UI, and unbanning means editing `ip_bans.yaml` and restarting.
+**Gatekeeper IP** adds all of that.
 
-## ✨ Funzioni
+## ✨ Features
 
 | | |
 |---|---|
-| ✅ **Whitelist** | Gli IP e le reti in whitelist (es. `192.168.1.0/24`) non vengono mai bannati, anche se sbagliano la password |
-| 🔒 **Ban manuale** | Scrivi l'IP e viene bloccato subito, senza riavvio. Data e ora vengono messe in automatico |
-| ⏱ **Ban a tempo** | 1 ora, 24 ore, 7 giorni, 30 giorni: allo scadere l'IP viene sbloccato da solo |
-| 🔓 **Sblocco** | Dalla lista degli IP bannati, con data/ora, scadenza, paese e provider. Senza riavvio |
-| 📲 **Avvisi Telegram** | A ogni login fallito un messaggio con i pulsanti **Banna · Banna 24 ore · Whitelist · Ignora** |
-| 🌍 **Paese e provider** | Bandiera, paese, città e provider di ogni IP esterno |
-| 📜 **Storico** | Registro di ban, sblocchi, scadenze e modifiche alla whitelist, con l'origine di ogni azione |
-| 📈 **Login falliti** | Sensore con i tentativi falliti delle ultime 24 ore ed evento per le automazioni |
-| 🧩 **Card** | Card per la dashboard già inclusa: contatori, ban, sblocco e ultimi eventi |
-| 💾 **Backup** | Esporta e importa whitelist, ban (con scadenze) e storico in un file YAML |
+| ✅ **Whitelist** | Whitelisted IPs and networks (e.g. `192.168.1.0/24`) are never banned, even after wrong passwords |
+| 🔒 **Manual ban** | Type an IP and it is blocked immediately, no restart. Date and time are added automatically |
+| ⏱ **Timed bans** | 1 hour, 24 hours, 7 days, 30 days: the IP is unbanned automatically when it expires |
+| 🔓 **Unban** | From the list of banned IPs, with date/time, expiry, country and ISP. No restart |
+| 📲 **Telegram alerts** | On every failed login: time, IP, browser and device, location, ISP, network type, requested URL, attempts this week, plus **Ban · Ban 24h · Whitelist · Ignore** buttons |
+| 🌍 **IP location** | Flag, country, region, city, ISP and network type (mobile, fixed, datacenter/VPN) |
+| 📜 **History** | Log of bans, unbans, expiries and whitelist changes, with the source of each action |
+| 📈 **Failed logins** | Sensor with the attempts of the last 24 hours and a data-rich event for automations |
+| 🧩 **Card** | Built-in dashboard card: counters, ban, unban and latest events |
+| 💾 **Backup** | Export and import whitelist, bans (with expiry) and history as a YAML file |
 
-Funziona sullo stesso `ip_bans.yaml` usato da Home Assistant: i ban automatici al 5° tentativo
-sbagliato continuano a funzionare come prima.
+It works on the same `ip_bans.yaml` used by Home Assistant: automatic bans after too many failed
+logins keep working as before.
 
-## 📦 Installazione
+> The user interface is translated in English and Italian. The Telegram alert text and the
+> device description (e.g. "Safari su iPhone") are currently in Italian.
 
-### Con HACS (consigliato)
-1. HACS → menu ⋮ in alto a destra → **Repository personalizzati**
-2. Repository: `https://github.com/ichnusa82/gatekeeper_ip` — Tipo: **Integrazione**
-3. Cerca **Gatekeeper IP** in HACS e installa
-4. Riavvia Home Assistant
+## 📦 Installation
 
-### Manuale
-1. Scarica l'ultima [release](https://github.com/ichnusa82/gatekeeper_ip/releases)
-2. Copia la cartella `custom_components/gatekeeper_ip` in `/config/custom_components/`
-3. Riavvia Home Assistant
+### HACS (recommended)
+1. HACS → ⋮ menu (top right) → **Custom repositories**
+2. Repository: `https://github.com/ichnusa82/gatekeeper_ip` — Type: **Integration**
+3. Search for **Gatekeeper IP** in HACS and install it
+4. Restart Home Assistant
 
-### Configurazione
-**Impostazioni → Dispositivi e servizi → Aggiungi integrazione → Gatekeeper IP**,
-poi inserisci la whitelist (un IP o una rete per riga). Il valore proposto è `192.168.1.0/24`.
+### Manual
+1. Download the latest [release](https://github.com/ichnusa82/gatekeeper_ip/releases)
+2. Copy the `custom_components/gatekeeper_ip` folder into `/config/custom_components/`
+3. Restart Home Assistant
 
-> **Requisito:** il blocco IP di Home Assistant deve essere attivo
-> (Impostazioni → Rete → *Blocco degli indirizzi IP*, oppure `ip_ban_enabled: true` nella sezione `http:`).
-> L'attributo `ip_ban_attivo` del sensore *IP bannati* indica se è attivo.
+### Setup
+**Settings → Devices & services → Add integration → Gatekeeper IP**,
+then enter the whitelist (one IP or network per line). The suggested value is `192.168.1.0/24`.
 
-## ⚙️ Menu Configura
+> **Requirement:** Home Assistant IP banning must be enabled
+> (Settings → Network → *IP address banning*, or `ip_ban_enabled: true` in the `http:` section).
+> The `ip_ban_attivo` attribute of the *Banned IPs* sensor shows whether it is active.
 
-Dalla pagina dell'integrazione premi **Configura**:
+## ⚙️ Configure menu
 
-- 🔒 **Banna IP manualmente** — un IP per riga e la durata (permanente o a tempo).
-  Facoltativo: per una data diversa scrivila dopo l'IP, es. `45.12.33.7 21/11/2026 01:42`
-- 🔓 **Sblocca IP bannati** — spunta gli IP da sbloccare
-- ✅ **Modifica whitelist**
-- ⚙️ **Impostazioni** — avvisi Telegram, Chat ID, paese e provider degli IP
-- 📤 **Esporta backup** / 📥 **Importa backup** — file YAML nella cartella `/config`
+On the integration page press **Configure**:
 
-Gli IP in whitelist non si possono bannare; sono accettati solo singoli IP, non reti
-(`ip_bans.yaml` non le supporta).
+- 🔒 **Ban IPs manually** — one IP per line and the duration (permanent or timed).
+  Optional: to set a different date, write it after the IP, e.g. `45.12.33.7 21/11/2026 01:42`
+- 🔓 **Unban IPs** — tick the IPs to unban
+- ✅ **Edit whitelist**
+- ⚙️ **Settings** — Telegram alerts, Chat ID, IP location and ISP
+- 📤 **Export backup** / 📥 **Import backup** — YAML file in the `/config` folder
 
-## 📲 Avvisi Telegram
+Whitelisted IPs can't be banned; only single IPs are accepted, not networks
+(`ip_bans.yaml` doesn't support them).
 
-Serve l'integrazione [Telegram Bot](https://www.home-assistant.io/integrations/telegram_bot/) già configurata.
-Attivali da **Configura → Impostazioni** (il Chat ID è facoltativo: vuoto = chat predefinita).
+## 📲 Telegram alerts
 
-A ogni login fallito da un IP **non** in whitelist arriva un messaggio così:
+Requires the [Telegram Bot](https://www.home-assistant.io/integrations/telegram_bot/) integration.
+Enable them from **Configure → Settings** (Chat ID is optional: empty = default chat).
+
+On every failed login from an IP **not** in the whitelist you get a message like this:
 
 ```
 ⚠️ LOGIN FALLITO HOME ASSISTANT
@@ -96,67 +103,75 @@ A ogni login fallito da un IP **non** in whitelist arriva un messaggio così:
 [ ✅ Whitelist ] [ 🙈 Ignora ]
 ```
 
-- **🌍 browser e dispositivo** e **🔗 pagina richiesta** vengono letti dal registro di Home Assistant
-- **📶 tipo di rete**: rete mobile, rete fissa oppure 🖥 datacenter / VPN / proxy
-- **🔢 tentativi**: dello stesso IP negli ultimi 7 giorni
+- **🌍 browser and device** and **🔗 requested URL** are read from the Home Assistant log
+- **📶 network type**: mobile, 🏠 fixed line, or 🖥 datacenter / VPN / proxy
+- **🔢 attempts**: from the same IP in the last 7 days
 
-Premuto un pulsante, il messaggio si aggiorna con l'esito. Per non intasare la chat arriva al
-massimo un messaggio al minuto per lo stesso IP.
+When you press a button, the message is updated with the result. To avoid flooding the chat, at
+most one message per minute is sent for the same IP (all attempts are still counted).
 
-## 🧩 Card per la dashboard
+## 🧩 Dashboard card
 
-La card è inclusa e si registra da sola: non serve aggiungerla alle risorse.
-**Modifica dashboard → Aggiungi scheda → cerca "Gatekeeper"**, oppure scheda manuale:
+The card is bundled and registers itself: no need to add it to your resources.
+**Edit dashboard → Add card → search "Gatekeeper"**, or use a manual card:
 
 ```yaml
 type: custom:gatekeeper-ip-card
-# opzioni facoltative
+# optional
 title: Gatekeeper IP
-show_history: true     # ultimi eventi
+show_history: true     # latest events
 history_items: 8
-show_ban_form: true    # campo per bannare a mano
+show_ban_form: true    # field to ban an IP manually
 ```
 
-Mostra i contatori (IP bannati, a tempo, login falliti), un campo per bannare con la durata,
-la lista degli IP con bandiera e pulsante **Sblocca**, e gli ultimi eventi.
+It shows the counters (banned IPs, timed bans, failed logins), a field to ban an IP with a duration,
+the list of IPs with flag and **Unban** button, and the latest events.
 
-## 📊 Sensori
+## 📊 Sensors
 
-I nomi delle entità qui sotto sono quelli con Home Assistant in italiano.
+Entity IDs depend on your Home Assistant language (English shown here).
 
-| Entità | Stato | Attributi principali |
+| Entity | State | Main attributes |
 |---|---|---|
-| `sensor.gatekeeper_ip_ip_bannati` | numero di IP bannati | `bans`, `ip_bannati`, `temporanei`, `whitelist`, `ip_ban_attivo` |
-| `sensor.gatekeeper_ip_login_falliti_24_ore` | login falliti nelle ultime 24 ore | `per_ip`, `ultimo_ip`, `ultimo_host`, `ultimo_tentativo` |
-| `sensor.gatekeeper_ip_ultimo_evento` | ultimo ban/sblocco | `storico` (ultimi 40 eventi) |
+| `sensor.gatekeeper_ip_banned_ips` | number of banned IPs | `bans`, `ip_bannati`, `temporanei`, `whitelist`, `ip_ban_attivo` |
+| `sensor.gatekeeper_ip_failed_logins_24h` | failed logins in the last 24 hours | `per_ip`, `ultimo_ip`, `ultimo_host`, `ultimo_tentativo` |
+| `sensor.gatekeeper_ip_last_event` | last ban/unban | `storico` (last 40 events) |
 
-## 🛠 Servizi
+## 🛠 Services
 
-| Servizio | Descrizione |
+| Service | Description |
 |---|---|
-| `gatekeeper_ip.ban` | Banna uno o più IP; `duration` facoltativa |
-| `gatekeeper_ip.unban` | Sblocca un IP o tutti gli IP di una rete |
-| `gatekeeper_ip.purge_whitelisted` | Sblocca tutti gli IP in whitelist |
-| `gatekeeper_ip.add_to_whitelist` | Aggiunge un IP/rete alla whitelist (e lo sblocca) |
-| `gatekeeper_ip.remove_from_whitelist` | Toglie un IP/rete dalla whitelist |
-| `gatekeeper_ip.export` | Salva un backup in `/config` |
-| `gatekeeper_ip.import` | Importa un backup da `/config` |
-| `gatekeeper_ip.get_history` | Restituisce lo storico |
+| `gatekeeper_ip.ban` | Ban one or more IPs; optional `duration` |
+| `gatekeeper_ip.unban` | Unban an IP or every IP in a network |
+| `gatekeeper_ip.purge_whitelisted` | Unban all whitelisted IPs |
+| `gatekeeper_ip.add_to_whitelist` | Add an IP/network to the whitelist (and unban it) |
+| `gatekeeper_ip.remove_from_whitelist` | Remove an IP/network from the whitelist |
+| `gatekeeper_ip.export` | Save a backup to `/config` |
+| `gatekeeper_ip.import` | Import a backup from `/config` |
+| `gatekeeper_ip.get_history` | Return the history |
 
 ```yaml
 action: gatekeeper_ip.ban
 data:
   ip: "45.12.33.7"
-  duration: "24:00:00"   # facoltativa
+  duration: "24:00:00"   # optional
 ```
 
-## 🤖 Automazioni
+## 🤖 Automations
 
-A ogni login fallito viene generato l'evento `gatekeeper_ip_login_failed` con
-`ip`, `host`, `whitelisted`, `attempts_24h`, `attempts_week`, `device`, `user_agent`, `url`,
-`country`, `country_code`, `region`, `city`, `isp`, `mobile`, `hosting`.
+Every failed login fires the `gatekeeper_ip_login_failed` event with:
 
-Esempio: ban automatico per 7 giorni al terzo tentativo da un IP estero.
+| Field | Content |
+|---|---|
+| `ip`, `host` | address and host name |
+| `whitelisted` | `true` if the IP is whitelisted |
+| `attempts_24h`, `attempts_week` | attempts from the same IP in the last 24 hours / 7 days |
+| `device`, `user_agent` | e.g. "Safari su iPhone" and the full user agent |
+| `url` | requested URL |
+| `country`, `country_code`, `region`, `city` | location |
+| `isp`, `mobile`, `hosting` | ISP, mobile network, datacenter/VPN |
+
+Example: ban for 7 days at the third attempt from a foreign IP.
 
 ```yaml
 triggers:
@@ -175,23 +190,29 @@ actions:
       duration: "168:00:00"
 ```
 
-## ❓ Problemi frequenti
+## ❓ Troubleshooting
 
-- **La card non compare o dice "custom element doesn't exist"** — ricarica la pagina con Ctrl+F5;
-  nell'app: Impostazioni app → Debug → Svuota cache del frontend.
-- **Dopo un aggiornamento vedo ancora la versione vecchia** — cancella la cartella
-  `custom_components/gatekeeper_ip` (compresa `__pycache__`) prima di copiare quella nuova e fai un riavvio completo.
-- **Tutti gli IP risultano uguali (es. `172.30.33.x`)** — Home Assistant è dietro un reverse proxy:
-  configura `use_x_forwarded_for` e `trusted_proxies`, altrimenti Home Assistant vede l'IP del proxy.
-- **L'icona dell'integrazione non si vede** — dipende dalla versione di Home Assistant; ricarica con Ctrl+F5.
+- **The card doesn't show up or says "custom element doesn't exist"** — reload the page with Ctrl+F5;
+  in the app: App settings → Debug → Clear frontend cache.
+- **After an update I still see the old version** — delete the `custom_components/gatekeeper_ip`
+  folder (including `__pycache__`) before copying the new one, then do a full restart.
+- **All IPs look the same (e.g. `172.30.33.x`)** — Home Assistant is behind a reverse proxy:
+  configure `use_x_forwarded_for` and `trusted_proxies`, otherwise Home Assistant sees the proxy's IP.
+- **Browser and URL are missing from the Telegram alert** — they are read from the Home Assistant log:
+  the `homeassistant.components.http.ban` logger must be at `warning` level or lower (the default).
+- **I get two messages for each attempt** — another automation of yours also notifies failed logins: disable one.
 
 ## 🔐 Privacy
 
-- Se attivi *paese e provider*, gli IP **esterni** vengono inviati al servizio gratuito
-  [ip-api.com](https://ip-api.com) (risultato in cache per 30 giorni). Gli IP della rete locale non vengono inviati.
-  Si disattiva da Configura → Impostazioni.
-- Storico, tentativi falliti e cache restano in `/config/.storage/gatekeeper_ip.data`.
+- If *IP location* is enabled, **external** IPs are sent to the free [ip-api.com](https://ip-api.com)
+  service (results cached for 30 days). Local network IPs are never sent.
+  It can be disabled from Configure → Settings.
+- History, failed logins (last 7 days) and cache are stored in `/config/.storage/gatekeeper_ip.data`.
 
-## 📄 Licenza
+## 📝 Changelog
+
+See the [CHANGELOG](CHANGELOG.md) (in Italian).
+
+## 📄 License
 
 [MIT](LICENSE) © 2026 ichnusa82
