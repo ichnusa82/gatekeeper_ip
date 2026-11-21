@@ -1,7 +1,7 @@
 """Costanti per Gatekeeper IP."""
 
 DOMAIN = "gatekeeper_ip"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # Opzioni
 CONF_WHITELIST = "whitelist"
@@ -29,7 +29,8 @@ NOTIFICATION_ID_LOGIN = "http-login"
 
 # Geolocalizzazione (gratuita, senza chiave, max 45 richieste/min)
 GEO_URL = (
-    "http://ip-api.com/json/{ip}?fields=status,message,country,countryCode,city,isp,org&lang=it"
+    "http://ip-api.com/json/{ip}"
+    "?fields=status,message,country,countryCode,regionName,city,isp,org,mobile,proxy,hosting"
 )
 
 # Card

@@ -79,19 +79,26 @@ Gli IP in whitelist non si possono bannare; sono accettati solo singoli IP, non 
 Serve l'integrazione [Telegram Bot](https://www.home-assistant.io/integrations/telegram_bot/) già configurata.
 Attivali da **Configura → Impostazioni** (il Chat ID è facoltativo: vuoto = chat predefinita).
 
-A ogni login fallito da un IP **non** in whitelist arriva un messaggio con IP, host, paese,
-provider e tentativi delle ultime 24 ore, con quattro pulsanti:
+A ogni login fallito da un IP **non** in whitelist arriva un messaggio così:
 
 ```
-🚨 Login fallito su Home Assistant
-IP: 103.55.1.9
-Paese: 🇨🇳 Cina, Pechino
-Provider: Alibaba
-Tentativi nelle ultime 24 ore: 3
+⚠️ LOGIN FALLITO HOME ASSISTANT
+🕐 21/11/2026 19:06:34
+🌐 IP: 93.38.176.139
+🌍 Safari su iPhone
+📍 Italy (IT) - Olgiate Comasco, Lombardy
+🏢 Fastweb Networks
+📶 Rete mobile
+🔗 /auth/login_flow/c8f6c8c47fff17484de793c4536aa45e
+🔢 Tentativi questa settimana: 10
 
 [ 🔒 Banna ] [ ⏱ Banna 24 ore ]
 [ ✅ Whitelist ] [ 🙈 Ignora ]
 ```
+
+- **🌍 browser e dispositivo** e **🔗 pagina richiesta** vengono letti dal registro di Home Assistant
+- **📶 tipo di rete**: rete mobile, rete fissa oppure 🖥 datacenter / VPN / proxy
+- **🔢 tentativi**: dello stesso IP negli ultimi 7 giorni
 
 Premuto un pulsante, il messaggio si aggiorna con l'esito. Per non intasare la chat arriva al
 massimo un messaggio al minuto per lo stesso IP.
@@ -146,7 +153,8 @@ data:
 ## 🤖 Automazioni
 
 A ogni login fallito viene generato l'evento `gatekeeper_ip_login_failed` con
-`ip`, `host`, `whitelisted`, `attempts_24h`, `country`, `city`, `isp`.
+`ip`, `host`, `whitelisted`, `attempts_24h`, `attempts_week`, `device`, `user_agent`, `url`,
+`country`, `country_code`, `region`, `city`, `isp`, `mobile`, `hosting`.
 
 Esempio: ban automatico per 7 giorni al terzo tentativo da un IP estero.
 
@@ -159,7 +167,7 @@ conditions:
     value_template: >
       {{ not trigger.event.data.whitelisted
          and trigger.event.data.attempts_24h >= 3
-         and trigger.event.data.country not in ['Italia', 'Rete locale'] }}
+         and trigger.event.data.country_code not in ['IT', None] }}
 actions:
   - action: gatekeeper_ip.ban
     data:

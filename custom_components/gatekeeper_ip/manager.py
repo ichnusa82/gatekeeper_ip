@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 from ipaddress import IPv4Address, IPv6Address, ip_address, ip_network
 from typing import Any
 
+import voluptuous as vol
 import yaml
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
@@ -222,6 +223,76 @@ KEY_BAN_MANAGER = _ban_module_key("KEY_BAN_MANAGER", "ha_banned_ips_manager")
 KEY_FAILED_LOGIN_ATTEMPTS = _ban_module_key("KEY_FAILED_LOGIN_ATTEMPTS", "ha_failed_login_attempts")
 
 _LOGIN_MSG_RE = re.compile(r"from (.*?) \(([0-9A-Fa-f:.]+)\)")
+_LOGIN_LOG_RE = re.compile(
+    r"from (.*?) \(([0-9A-Fa-f:.]+)\)\. Requested URL: '(.*?)'\. \((.*)\)\s*$", re.S
+)
+BAN_LOGGER = "homeassistant.components.http.ban"
+
+
+def describe_user_agent(ua: str | None) -> str | None:
+    """User agent → 'Safari su iPhone', 'Chrome su Windows', 'App Home Assistant su Android'…"""
+    if not ua or ua == "None":
+        return None
+    low = ua.lower()
+    if "iphone" in low:
+        device = "iPhone"
+    elif "ipad" in low:
+        device = "iPad"
+    elif "android" in low:
+        device = "Android"
+    elif "windows" in low:
+        device = "Windows"
+    elif "macintosh" in low or "mac os x" in low:
+        device = "Mac"
+    elif "cros" in low:
+        device = "ChromeOS"
+    elif "linux" in low:
+        device = "Linux"
+    else:
+        device = None
+
+    if "home assistant/" in low or "homeassistant/" in low:
+        browser = "App Home Assistant"
+    elif "edg/" in low or "edga/" in low or "edgios/" in low:
+        browser = "Edge"
+    elif "opr/" in low or "opera" in low:
+        browser = "Opera"
+    elif "samsungbrowser" in low:
+        browser = "Samsung Internet"
+    elif "firefox/" in low or "fxios/" in low:
+        browser = "Firefox"
+    elif "chrome/" in low or "crios/" in low:
+        browser = "Chrome"
+    elif "safari/" in low or ("applewebkit" in low and device in ("iPhone", "iPad", "Mac")):
+        browser = "Safari"
+    elif low.startswith(("curl", "wget", "python", "go-http", "java", "okhttp", "postman")):
+        return ua.split()[0][:60] + " (script)"
+    else:
+        browser = None
+
+    if browser and device:
+        return f"{browser} su {device}"
+    return browser or device or ua[:80]
+
+
+class _BanLogHandler(logging.Handler):
+    """Legge dal log di HA l'URL richiesto e il browser di ogni login fallito."""
+
+    def __init__(self, store: dict[str, dict[str, Any]]) -> None:
+        super().__init__(logging.WARNING)
+        self._store = store
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            match = _LOGIN_LOG_RE.search(record.getMessage())
+            if not match:
+                return
+            ip = str(ip_address(match.group(2)))
+            self._store[ip] = {"url": match.group(3), "ua": match.group(4)}
+            while len(self._store) > 200:
+                self._store.pop(next(iter(self._store)))
+        except Exception:  # noqa: BLE001
+            return
 
 
 # ================================================================ manager
@@ -258,6 +329,8 @@ class GatekeeperManager:
         self._geo_lock = asyncio.Lock()
         self._geo_task: asyncio.Task | None = None
         self._warned_no_telegram = False
+        self._requests: dict[str, dict[str, Any]] = {}
+        self._log_handler = _BanLogHandler(self._requests)
 
     # ------------------------------------------------------------ ciclo vita
     async def async_setup(self) -> None:
@@ -269,6 +342,8 @@ class GatekeeperManager:
                     self.data[key] = value
 
         self._attach()
+        logging.getLogger(BAN_LOGGER).addHandler(self._log_handler)
+        self._unsubs.append(lambda: logging.getLogger(BAN_LOGGER).removeHandler(self._log_handler))
         self._unsubs.append(self._listen_login_notifications())
         self._unsubs.append(
             self.hass.bus.async_listen("telegram_callback", self._on_telegram_callback)
@@ -601,7 +676,7 @@ class GatekeeperManager:
 
     # ------------------------------------------------------- login falliti
     def _prune_failed(self) -> bool:
-        limit = dt_util.utcnow() - timedelta(hours=24)
+        limit = dt_util.utcnow() - timedelta(days=7)
         before = len(self.data["failed"])
         self.data["failed"] = [
             f for f in self.data["failed"] if (parse_dt(f.get("time")) or limit) > limit
@@ -610,6 +685,15 @@ class GatekeeperManager:
         if changed:
             self._save()
         return changed
+
+    def attempts_week(self, ip: str) -> int:
+        """Tentativi falliti dello stesso IP negli ultimi 7 giorni."""
+        limit = dt_util.utcnow() - timedelta(days=7)
+        return sum(
+            1
+            for f in self.data["failed"]
+            if f.get("ip") == ip and (parse_dt(f.get("time")) or limit) > limit
+        )
 
     @property
     def failed_24h(self) -> list[dict[str, Any]]:
@@ -650,13 +734,19 @@ class GatekeeperManager:
 
     async def _async_failed_login(self, ip: str, host: str) -> None:
         now = dt_util.utcnow()
-        self.data["failed"].append({"time": now.isoformat(), "ip": ip, "host": host})
+        req = self._requests.pop(ip, {})
+        url, user_agent = req.get("url"), req.get("ua")
+        device = describe_user_agent(user_agent)
+        self.data["failed"].append(
+            {"time": now.isoformat(), "ip": ip, "host": host, "url": url, "device": device}
+        )
         self._prune_failed()
         self._save()
         self._signal()
 
         whitelisted = self.is_whitelisted(ip)
         attempts = sum(1 for f in self.failed_24h if f.get("ip") == ip)
+        attempts_week = self.attempts_week(ip)
         geo = await self.async_geo(ip)
         self.hass.bus.async_fire(
             EVENT_LOGIN_FAILED,
@@ -665,9 +755,17 @@ class GatekeeperManager:
                 "host": host,
                 "whitelisted": whitelisted,
                 "attempts_24h": attempts,
+                "attempts_week": attempts_week,
+                "device": device,
+                "user_agent": user_agent,
+                "url": url,
                 "country": geo.get("country"),
+                "country_code": geo.get("country_code"),
+                "region": geo.get("region"),
                 "city": geo.get("city"),
                 "isp": geo.get("isp"),
+                "mobile": geo.get("mobile"),
+                "hosting": geo.get("hosting"),
             },
         )
         if not self.telegram_enabled or whitelisted:
@@ -676,7 +774,7 @@ class GatekeeperManager:
         if last and now - last < timedelta(seconds=60):
             return  # non intasare la chat con tentativi a raffica
         self._last_telegram[ip] = now
-        await self._async_telegram_alert(ip, host, geo, attempts)
+        await self._async_telegram_alert(ip, geo, attempts_week, device=device, url=url, when=now)
 
     # --------------------------------------------------------------- Telegram
     async def _tg(self, service: str, data: dict[str, Any]) -> bool:
@@ -692,23 +790,43 @@ class GatekeeperManager:
             return False
         return True
 
-    async def _async_telegram_alert(self, ip: str, host: str, geo: dict, attempts: int) -> None:
+    async def _async_telegram_alert(
+        self,
+        ip: str,
+        geo: dict,
+        attempts_week: int,
+        *,
+        device: str | None = None,
+        url: str | None = None,
+        when: datetime | None = None,
+    ) -> None:
         esc = html.escape
         lines = [
-            "🚨 <b>Login fallito su Home Assistant</b>",
-            f"IP: <code>{esc(ip)}</code>",
+            "⚠️ <b>LOGIN FALLITO HOME ASSISTANT</b>",
+            f"🕐 {fmt_local(when or dt_util.utcnow())}",
+            f"🌐 IP: <code>{esc(ip)}</code>",
         ]
-        if host and host != ip:
-            lines.append(f"Host: {esc(host)}")
+        if device:
+            lines.append(f"🌍 {esc(device)}")
         if geo.get("country"):
-            place = geo["country"] + (f", {geo['city']}" if geo.get("city") else "")
-            lines.append(
-                f"Paese: {country_flag(geo.get('country_code'))} {esc(place)}".replace("  ", " ")
-            )
+            place = geo["country"]
+            if geo.get("country_code"):
+                place += f" ({geo['country_code']})"
+            local = ", ".join(x for x in (geo.get("city"), geo.get("region")) if x)
+            if local:
+                place += f" - {local}"
+            lines.append(f"📍 {esc(place)}")
         if geo.get("isp"):
-            lines.append(f"Provider: {esc(geo['isp'])}")
-        lines.append(f"Tentativi nelle ultime 24 ore: {attempts}")
-        lines.append(f"Ora: {fmt_local(dt_util.utcnow())}")
+            lines.append(f"🏢 {esc(geo['isp'])}")
+        if geo.get("hosting") or geo.get("proxy"):
+            lines.append("🖥 Datacenter / VPN / proxy")
+        elif geo.get("mobile"):
+            lines.append("📶 Rete mobile")
+        elif geo.get("mobile") is False:
+            lines.append("🏠 Rete fissa")
+        if url:
+            lines.append(f"🔗 {esc(url)}")
+        lines.append(f"🔢 Tentativi questa settimana: {attempts_week}")
         data: dict[str, Any] = {
             "message": "\n".join(lines),
             "parse_mode": "html",
@@ -717,12 +835,29 @@ class GatekeeperManager:
                 f"✅ Whitelist:/gkwl {ip}, 🙈 Ignora:/gkignore {ip}",
             ],
         }
+        chat_id: int | None = None
         if self.chat_id:
             try:
-                data["target"] = [int(self.chat_id)]
+                chat_id = int(self.chat_id)
             except ValueError:
                 _LOGGER.warning("Chat ID Telegram non valido: %s", self.chat_id)
-        await self._tg("send_message", data)
+        if chat_id is None:
+            await self._tg("send_message", data)
+            return
+        # "chat_id" è il parametro attuale; "target" è deprecato (rimosso in HA 2026.9)
+        # ma resta come riserva per le versioni di Home Assistant che non hanno chat_id.
+        if not self.hass.services.has_service("telegram_bot", "send_message"):
+            await self._tg("send_message", data)  # registra l'avviso una volta
+            return
+        try:
+            await self.hass.services.async_call(
+                "telegram_bot", "send_message", {**data, "chat_id": [chat_id]}, blocking=True
+            )
+        except vol.Invalid:
+            # versione di HA senza "chat_id": uso il vecchio "target"
+            await self._tg("send_message", {**data, "target": [chat_id]})
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("Errore Telegram (send_message): %s", err)
 
     async def _on_telegram_callback(self, event: Event) -> None:
         command = str(event.data.get("data", ""))
@@ -776,16 +911,25 @@ class GatekeeperManager:
             return {}
         cache = self.data["geo"]
         cached = cache.get(ip)
-        if cached and (
-            parse_dt(cached.get("time")) or dt_util.utcnow()
-        ) > dt_util.utcnow() - timedelta(days=30):
+        if (
+            cached
+            and "region" in cached
+            and (parse_dt(cached.get("time")) or dt_util.utcnow())
+            > dt_util.utcnow() - timedelta(days=30)
+        ):
             return cached
         try:
             addr = ip_address(ip)
         except ValueError:
             return {}
         if not addr.is_global:
-            info = {"country": "Rete locale", "country_code": None, "city": None, "isp": None}
+            info = {
+                "country": "Rete locale",
+                "country_code": None,
+                "region": None,
+                "city": None,
+                "isp": None,
+            }
         else:
             async with self._geo_lock:
                 try:
@@ -803,8 +947,12 @@ class GatekeeperManager:
             info = {
                 "country": js.get("country"),
                 "country_code": js.get("countryCode"),
+                "region": js.get("regionName"),
                 "city": js.get("city"),
                 "isp": js.get("isp") or js.get("org"),
+                "mobile": js.get("mobile"),
+                "proxy": js.get("proxy"),
+                "hosting": js.get("hosting"),
             }
         info["time"] = dt_util.utcnow().isoformat()
         cache[ip] = info

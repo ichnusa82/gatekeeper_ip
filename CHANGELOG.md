@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+- Nuovo messaggio Telegram: ora, browser e dispositivo, paese con regione e città, provider,
+  tipo di rete (mobile, fissa, datacenter/VPN), pagina richiesta, tentativi della settimana
+- Evento `gatekeeper_ip_login_failed` con i nuovi campi `attempts_week`, `device`, `user_agent`,
+  `url`, `country_code`, `region`, `mobile`, `hosting`
+- Paesi in inglese (es. "Italy"), come restituiti da ip-api.com
+- I tentativi falliti restano in memoria 7 giorni (il sensore continua a contare le ultime 24 ore)
+
+## 1.0.1
+- Telegram: usato `chat_id` al posto di `target`, deprecato e rimosso in Home Assistant 2026.9 (resta come riserva per le versioni più vecchie)
+
 ## 1.0.0 — prima pubblicazione
 - Whitelist di IP e reti che Home Assistant non banna mai
 - Ban manuale dal menu Configura, dalla card o con il servizio `ban` (data e ora automatiche)
