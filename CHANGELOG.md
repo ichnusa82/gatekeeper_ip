@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+- Telegram: dopo aver premuto un pulsante il messaggio ora si aggiorna con l'esito e i pulsanti spariscono
+  (prima Telegram rifiutava la modifica per via dei trattini bassi nel testo, es. `/auth/login_flow`)
+
 ## 1.1.0
 - Nuovo messaggio Telegram: ora, browser e dispositivo, paese con regione e città, provider,
   tipo di rete (mobile, fissa, datacenter/VPN), pagina richiesta, tentativi della settimana

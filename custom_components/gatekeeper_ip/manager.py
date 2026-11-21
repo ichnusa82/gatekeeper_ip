@@ -893,17 +893,38 @@ class GatekeeperManager:
         message = event.data.get("message") or {}
         chat_id = event.data.get("chat_id") or (message.get("chat") or {}).get("id")
         if message.get("message_id") and chat_id:
-            await self._tg(
-                "edit_message",
-                {
-                    "message_id": message["message_id"],
-                    "chat_id": chat_id,
-                    "message": f"{message.get('text', '')}\n\n{text}",
-                },
-            )
+            await self._async_close_alert(chat_id, message, text)
         if cmd == "/gkwl":
             # ultimo: provoca il ricaricamento dell'integrazione
             await self.async_whitelist_add([ip], unban=True, source="telegram")
+
+    async def _async_close_alert(self, chat_id: Any, message: dict, result: str) -> None:
+        """Aggiorna il messaggio con l'esito e toglie i pulsanti.
+
+        Il testo viene rimandato in HTML (con caratteri escapati): con il formato
+        predefinito del bot (Markdown) i trattini bassi, es. in /auth/login_flow,
+        farebbero rifiutare la modifica a Telegram.
+        """
+        lines = html.escape(str(message.get("text") or "")).split("\n")
+        if lines and lines[0]:
+            lines[0] = f"<b>{lines[0]}</b>"
+        body = "\n".join(lines) + f"\n\n<b>{html.escape(result)}</b>"
+        edited = await self._tg(
+            "edit_message",
+            {
+                "message_id": message["message_id"],
+                "chat_id": chat_id,
+                "message": body,
+                "parse_mode": "html",
+                "inline_keyboard": [],
+            },
+        )
+        if not edited:
+            # almeno togli i pulsanti
+            await self._tg(
+                "edit_replymarkup",
+                {"message_id": message["message_id"], "chat_id": chat_id, "inline_keyboard": []},
+            )
 
     # ----------------------------------------------------- geolocalizzazione
     async def async_geo(self, ip: str) -> dict[str, Any]:

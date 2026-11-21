@@ -1,7 +1,7 @@
 """Costanti per Gatekeeper IP."""
 
 DOMAIN = "gatekeeper_ip"
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # Opzioni
 CONF_WHITELIST = "whitelist"
