@@ -91,7 +91,7 @@ On every failed login from an IP **not** in the whitelist you get a message like
 ```
 ⚠️ LOGIN FALLITO HOME ASSISTANT
 🕐 21/11/2026 19:06:34
-🌐 IP: 93.38.176.139
+🌐 IP: 203.0.113.45
 🌍 Safari su iPhone
 📍 Italy (IT) - Olgiate Comasco, Lombardy
 🏢 Fastweb Networks
