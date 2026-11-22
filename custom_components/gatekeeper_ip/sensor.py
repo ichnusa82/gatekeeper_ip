@@ -11,8 +11,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import GatekeeperConfigEntry
-from .const import ACTION_LABELS, DOMAIN, SIGNAL_UPDATED, SOURCE_LABELS
-from .manager import GatekeeperManager, fmt_local
+from .const import DOMAIN, SIGNAL_UPDATED
+from .manager import GatekeeperManager, fmt_local, history_items
+from .texts import action_label, lang_of, source_label, t
 
 HISTORY_IN_ATTRIBUTES = 40
 
@@ -32,10 +33,9 @@ async def async_setup_entry(
     )
 
 
-def describe(event: dict[str, Any]) -> str:
-    action = ACTION_LABELS.get(event.get("action"), event.get("action") or "")
-    text = f"{action} {event.get('ip') or ''}".strip()
-    source = SOURCE_LABELS.get(event.get("source"), event.get("source"))
+def describe(event: dict[str, Any], lang: str) -> str:
+    text = f"{action_label(lang, event.get('action'))} {event.get('ip') or ''}".strip()
+    source = source_label(lang, event.get("source"))
     if source:
         text += f" ({source})"
     return text[:255]
@@ -43,6 +43,8 @@ def describe(event: dict[str, Any]) -> str:
 
 class _Base(SensorEntity):
     _attr_has_entity_name = True
+    # attributi lunghi e strutturati: non vanno nel registro storico di HA
+    _unrecorded_attributes = frozenset({"bans", "banned", "per_ip", "history", "whitelist"})
     _attr_should_poll = False
     _key = ""
 
@@ -78,15 +80,16 @@ class BannedIpsSensor(_Base):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         bans = self._manager.bans
+        lang = lang_of(self.hass)
         return {
             "integration": DOMAIN,
             "bans": bans,
-            "ip_bannati": {
+            "banned": {
                 b["ip"]: " · ".join(
                     x
                     for x in (
                         b["banned_at"],
-                        f"fino al {b['expires']}" if b["expires"] else None,
+                        t(lang, "until", date=b["expires"]) if b["expires"] else None,
                         f"{b['flag']} {b['country']}".strip() if b["country"] else None,
                         b["isp"],
                     )
@@ -94,9 +97,9 @@ class BannedIpsSensor(_Base):
                 )
                 for b in bans
             },
-            "temporanei": sum(1 for b in bans if b["expires"]),
+            "timed": sum(1 for b in bans if b["expires"]),
             "whitelist": self._manager.whitelist,
-            "ip_ban_attivo": self._manager.ban_enabled,
+            "ip_ban_enabled": self._manager.ban_enabled,
             "telegram": self._manager.telegram_enabled,
         }
 
@@ -118,9 +121,9 @@ class FailedLoginsSensor(_Base):
         return {
             "integration": DOMAIN,
             "per_ip": dict(Counter(f.get("ip") for f in failed).most_common(20)),
-            "ultimo_ip": last.get("ip"),
-            "ultimo_host": last.get("host"),
-            "ultimo_tentativo": fmt_local(last.get("time")),
+            "last_ip": last.get("ip"),
+            "last_host": last.get("host"),
+            "last_attempt": fmt_local(last.get("time")),
         }
 
 
@@ -131,21 +134,12 @@ class LastEventSensor(_Base):
     @property
     def native_value(self) -> str | None:
         history = self._manager.data["history"]
-        return describe(history[-1]) if history else None
+        return describe(history[-1], lang_of(self.hass)) if history else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         items = self._manager.data["history"][-HISTORY_IN_ATTRIBUTES:]
         return {
             "integration": DOMAIN,
-            "storico": [
-                {
-                    "quando": fmt_local(h.get("time")),
-                    "azione": ACTION_LABELS.get(h.get("action"), h.get("action")),
-                    "ip": h.get("ip"),
-                    "origine": SOURCE_LABELS.get(h.get("source"), h.get("source")),
-                    "nota": h.get("note") or "",
-                }
-                for h in reversed(items)
-            ],
+            "history": history_items(items, lang_of(self.hass)),
         }

@@ -51,6 +51,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+from .texts import action_label, lang_of, source_label, t
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -135,6 +136,39 @@ def parse_ip_list(raw: str | Iterable[str] | None) -> list[tuple[str, datetime |
 # ================================================================ utilità
 
 
+def render_note(entry: dict[str, Any], lang: str) -> str:
+    """Nota di una voce dello storico nella lingua richiesta."""
+    key = entry.get("note_key")
+    if not key:
+        return str(entry.get("note") or "")
+    params = dict(entry.get("note_params") or {})
+    try:
+        if key == "note_timed":
+            return t(
+                lang,
+                key,
+                duration=fmt_duration(timedelta(minutes=int(params.get("minutes", 0))), lang),
+                expires=fmt_local(params.get("expires")) or "",
+            )
+        return t(lang, key, **params)
+    except (KeyError, ValueError, TypeError):
+        return str(entry.get("note") or "")
+
+
+def history_items(items: list[dict[str, Any]], lang: str) -> list[dict[str, Any]]:
+    """Storico pronto da mostrare (chiavi invariate, valori nella lingua di HA)."""
+    return [
+        {
+            "time": fmt_local(h.get("time")),
+            "action": action_label(lang, h.get("action")),
+            "ip": h.get("ip"),
+            "source": source_label(lang, h.get("source")),
+            "note": render_note(h, lang),
+        }
+        for h in reversed(items)
+    ]
+
+
 def parse_dt(value: Any) -> datetime | None:
     """datetime o stringa ISO → datetime con fuso (UTC se mancante)."""
     if value is None or value == "":
@@ -158,18 +192,18 @@ def fmt_local(value: Any) -> str | None:
     return dt_util.as_local(when).strftime("%d/%m/%Y %H:%M:%S")
 
 
-def fmt_duration(delta: timedelta) -> str:
+def fmt_duration(delta: timedelta, lang: str = "it") -> str:
     minutes = int(delta.total_seconds() // 60)
     days, rest = divmod(minutes, 1440)
     hours, mins = divmod(rest, 60)
     parts = []
     if days:
-        parts.append(f"{days} {'giorno' if days == 1 else 'giorni'}")
+        parts.append(f"{days} {t(lang, 'dur_day' if days == 1 else 'dur_days')}")
     if hours:
-        parts.append(f"{hours} {'ora' if hours == 1 else 'ore'}")
+        parts.append(f"{hours} {t(lang, 'dur_hour' if hours == 1 else 'dur_hours')}")
     if mins:
-        parts.append(f"{mins} min")
-    return " ".join(parts) or "meno di un minuto"
+        parts.append(f"{mins} {t(lang, 'dur_min')}")
+    return " ".join(parts) or t(lang, "dur_less")
 
 
 def country_flag(code: str | None) -> str:
@@ -204,7 +238,7 @@ def _read_bans_file(path: str) -> dict:
     try:
         data = _read_yaml(path)
     except yaml.YAMLError as err:
-        _LOGGER.error("ip_bans.yaml non leggibile: %s", err)
+        _LOGGER.error("ip_bans.yaml is not readable: %s", err)
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -229,7 +263,7 @@ _LOGIN_LOG_RE = re.compile(
 BAN_LOGGER = "homeassistant.components.http.ban"
 
 
-def describe_user_agent(ua: str | None) -> str | None:
+def describe_user_agent(ua: str | None, lang: str = "it") -> str | None:
     """User agent → 'Safari su iPhone', 'Chrome su Windows', 'App Home Assistant su Android'…"""
     if not ua or ua == "None":
         return None
@@ -252,7 +286,7 @@ def describe_user_agent(ua: str | None) -> str | None:
         device = None
 
     if "home assistant/" in low or "homeassistant/" in low:
-        browser = "App Home Assistant"
+        browser = t(lang, "ua_app")
     elif "edg/" in low or "edga/" in low or "edgios/" in low:
         browser = "Edge"
     elif "opr/" in low or "opera" in low:
@@ -271,7 +305,7 @@ def describe_user_agent(ua: str | None) -> str | None:
         browser = None
 
     if browser and device:
-        return f"{browser} su {device}"
+        return t(lang, "ua_on", browser=browser, device=device)
     return browser or device or ua[:80]
 
 
@@ -374,16 +408,28 @@ class GatekeeperManager:
 
     # ----------------------------------------------------------------- storico
     @callback
-    def log(self, action: str, ip: str | None = None, source: str = "", note: str = "") -> None:
-        self.data["history"].append(
-            {
-                "time": dt_util.utcnow().isoformat(),
-                "action": action,
-                "ip": ip,
-                "source": source,
-                "note": note,
-            }
-        )
+    @property
+    def lang(self) -> str:
+        return lang_of(self.hass)
+
+    def log(
+        self,
+        action: str,
+        ip: str | None = None,
+        source: str = "",
+        note_key: str | None = None,
+        **note_params: Any,
+    ) -> None:
+        entry: dict[str, Any] = {
+            "time": dt_util.utcnow().isoformat(),
+            "action": action,
+            "ip": ip,
+            "source": source,
+        }
+        if note_key:
+            entry["note_key"] = note_key
+            entry["note_params"] = note_params
+        self.data["history"].append(entry)
         del self.data["history"][:-HISTORY_MAX]
         self._save()
         self._signal()
@@ -452,8 +498,8 @@ class GatekeeperManager:
         ban_manager = app.get(KEY_BAN_MANAGER) if app is not None else None
         if ban_manager is None:
             _LOGGER.warning(
-                "Ban manager di Home Assistant non trovato (blocco IP disattivato?): "
-                "la whitelist non ha effetto, i ban manuali valgono dal riavvio"
+                "Home Assistant ban manager not found (is IP banning disabled?): "
+                "the whitelist has no effect, manual bans apply after a restart"
             )
             return
         self._ban_manager = ban_manager
@@ -463,12 +509,12 @@ class GatekeeperManager:
         async def async_add_ban_filtered(remote_addr: IPAddr) -> None:
             ip = str(remote_addr)
             if manager.is_whitelisted(ip):
-                _LOGGER.warning("IP %s in whitelist: ban ignorato", ip)
+                _LOGGER.warning("IP %s is whitelisted: ban skipped", ip)
                 manager._reset_failed_attempts(remote_addr)
-                manager.log("ban_prevented", ip, "auto", "troppi tentativi falliti")
+                manager.log("ban_prevented", ip, "auto", "note_too_many")
                 return
             await manager._original_add_ban(remote_addr)
-            manager.log("ban", ip, "auto", "troppi tentativi falliti")
+            manager.log("ban", ip, "auto", "note_too_many")
             await manager.async_refresh_bans()
 
         # attributo d'istanza: oscura il metodo di classe, rimovibile con delattr
@@ -516,7 +562,7 @@ class GatekeeperManager:
         for ip in sorted(merged, key=ip_sort_key):
             when = merged[ip]
             expires = parse_dt(temp.get(ip))
-            geo = self.data["geo"].get(ip, {})
+            geo = self.geo_view(ip)
             bans.append(
                 {
                     "ip": ip,
@@ -551,7 +597,7 @@ class GatekeeperManager:
 
             ban = IpBan(ip, when)
         except (ImportError, TypeError) as err:
-            _LOGGER.debug("IpBan non disponibile (%s): ban attivo dal riavvio", err)
+            _LOGGER.debug("IpBan not available (%s): ban active after a restart", err)
             return
         self._ban_manager.ip_bans_lookup[ban.ip_address] = ban
 
@@ -581,16 +627,23 @@ class GatekeeperManager:
             when = when or dt_util.utcnow()
             await self.hass.async_add_executor_job(self._append_to_file, ip, when)
             self._add_to_memory(ip, when)
-            note = ""
             if duration:
                 expires = dt_util.utcnow() + duration
                 self.data["temp_bans"][ip] = expires.isoformat()
-                note = f"per {fmt_duration(duration)} (fino al {fmt_local(expires)})"
-            self.log("ban", ip, source, note)
+                self.log(
+                    "ban",
+                    ip,
+                    source,
+                    "note_timed",
+                    minutes=int(duration.total_seconds() // 60),
+                    expires=expires.isoformat(),
+                )
+            else:
+                self.log("ban", ip, source)
             already.add(ip)
             result["banned"].append(ip)
         if result["banned"]:
-            _LOGGER.warning("IP bannati (%s): %s", source, ", ".join(result["banned"]))
+            _LOGGER.warning("IPs banned (%s): %s", source, ", ".join(result["banned"]))
             self._save()
             await self.async_refresh_bans()
         return result
@@ -639,7 +692,7 @@ class GatekeeperManager:
         return removed
 
     async def async_unban(
-        self, ip: str, source: str = "manual", action: str = "unban", note: str = ""
+        self, ip: str, source: str = "manual", action: str = "unban"
     ) -> list[str]:
         """Sblocca un IP o tutti gli IP di una rete CIDR."""
         net = ip_network(ip, strict=False)
@@ -653,13 +706,13 @@ class GatekeeperManager:
 
         removed = await self._async_remove(match)
         for addr in removed:
-            self.log(action, addr, source, note)
+            self.log(action, addr, source)
         return removed
 
     async def async_purge_whitelisted(self) -> list[str]:
         removed = await self._async_remove(self.is_whitelisted)
         for addr in removed:
-            self.log("unban", addr, "whitelist", "IP in whitelist")
+            self.log("unban", addr, "whitelist", "note_in_whitelist")
         return removed
 
     # ------------------------------------------------------ attività periodica
@@ -736,7 +789,7 @@ class GatekeeperManager:
         now = dt_util.utcnow()
         req = self._requests.pop(ip, {})
         url, user_agent = req.get("url"), req.get("ua")
-        device = describe_user_agent(user_agent)
+        device = describe_user_agent(user_agent, self.lang)
         self.data["failed"].append(
             {"time": now.isoformat(), "ip": ip, "host": host, "url": url, "device": device}
         )
@@ -780,13 +833,15 @@ class GatekeeperManager:
     async def _tg(self, service: str, data: dict[str, Any]) -> bool:
         if not self.hass.services.has_service("telegram_bot", service):
             if not self._warned_no_telegram:
-                _LOGGER.warning("telegram_bot.%s non disponibile: configura Telegram Bot", service)
+                _LOGGER.warning(
+                    "telegram_bot.%s not available: set up the Telegram Bot integration", service
+                )
                 self._warned_no_telegram = True
             return False
         try:
             await self.hass.services.async_call("telegram_bot", service, data, blocking=True)
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Errore Telegram (%s): %s", service, err)
+            _LOGGER.warning("Telegram error (%s): %s", service, err)
             return False
         return True
 
@@ -801,8 +856,9 @@ class GatekeeperManager:
         when: datetime | None = None,
     ) -> None:
         esc = html.escape
+        lang = self.lang
         lines = [
-            "⚠️ <b>LOGIN FALLITO HOME ASSISTANT</b>",
+            f"⚠️ <b>{t(lang, 'tg_title')}</b>",
             f"🕐 {fmt_local(when or dt_util.utcnow())}",
             f"🌐 IP: <code>{esc(ip)}</code>",
         ]
@@ -819,20 +875,20 @@ class GatekeeperManager:
         if geo.get("isp"):
             lines.append(f"🏢 {esc(geo['isp'])}")
         if geo.get("hosting") or geo.get("proxy"):
-            lines.append("🖥 Datacenter / VPN / proxy")
+            lines.append(f"🖥 {t(lang, 'tg_hosting')}")
         elif geo.get("mobile"):
-            lines.append("📶 Rete mobile")
+            lines.append(f"📶 {t(lang, 'tg_mobile')}")
         elif geo.get("mobile") is False:
-            lines.append("🏠 Rete fissa")
+            lines.append(f"🏠 {t(lang, 'tg_fixed')}")
         if url:
             lines.append(f"🔗 {esc(url)}")
-        lines.append(f"🔢 Tentativi questa settimana: {attempts_week}")
+        lines.append(f"🔢 {t(lang, 'tg_attempts', n=attempts_week)}")
         data: dict[str, Any] = {
             "message": "\n".join(lines),
             "parse_mode": "html",
             "inline_keyboard": [
-                f"🔒 Banna:/gkban {ip}, ⏱ Banna 24 ore:/gkban24 {ip}",
-                f"✅ Whitelist:/gkwl {ip}, 🙈 Ignora:/gkignore {ip}",
+                f"🔒 {t(lang, 'btn_ban')}:/gkban {ip}, ⏱ {t(lang, 'btn_ban24')}:/gkban24 {ip}",
+                f"✅ {t(lang, 'btn_whitelist')}:/gkwl {ip}, 🙈 {t(lang, 'btn_ignore')}:/gkignore {ip}",
             ],
         }
         chat_id: int | None = None
@@ -840,7 +896,7 @@ class GatekeeperManager:
             try:
                 chat_id = int(self.chat_id)
             except ValueError:
-                _LOGGER.warning("Chat ID Telegram non valido: %s", self.chat_id)
+                _LOGGER.warning("Invalid Telegram chat ID: %s", self.chat_id)
         if chat_id is None:
             await self._tg("send_message", data)
             return
@@ -857,13 +913,14 @@ class GatekeeperManager:
             # versione di HA senza "chat_id": uso il vecchio "target"
             await self._tg("send_message", {**data, "target": [chat_id]})
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Errore Telegram (send_message): %s", err)
+            _LOGGER.warning("Telegram error (send_message): %s", err)
 
     async def _on_telegram_callback(self, event: Event) -> None:
         command = str(event.data.get("data", ""))
         if not command.startswith("/gk"):
             return
         cmd, _, ip = command.partition(" ")
+        lang = self.lang
         try:
             ip = str(ip_address(ip.strip()))
         except ValueError:
@@ -873,15 +930,15 @@ class GatekeeperManager:
             duration = timedelta(hours=24) if cmd == "/gkban24" else None
             res = await self.async_ban([(ip, None)], duration, source="telegram")
             if res["banned"]:
-                text = f"🔒 {ip} bannato" + (" per 24 ore" if duration else "")
+                text = "🔒 " + t(lang, "res_banned24" if duration else "res_banned", ip=ip)
             elif res["whitelisted"]:
-                text = f"⚠️ {ip} è in whitelist: non bannato"
+                text = "⚠️ " + t(lang, "res_whitelisted", ip=ip)
             else:
-                text = f"ℹ️ {ip} era già bannato"
+                text = "ℹ️ " + t(lang, "res_already", ip=ip)
         elif cmd == "/gkwl":
-            text = f"✅ {ip} aggiunto alla whitelist"
+            text = "✅ " + t(lang, "res_whitelist_added", ip=ip)
         elif cmd == "/gkignore":
-            text = "🙈 Ignorato"
+            text = "🙈 " + t(lang, "res_ignored")
         else:
             return
 
@@ -927,6 +984,13 @@ class GatekeeperManager:
             )
 
     # ----------------------------------------------------- geolocalizzazione
+    def geo_view(self, ip: str) -> dict[str, Any]:
+        """Dati geografici in cache, con "Rete locale" nella lingua attuale."""
+        info = self.data["geo"].get(ip) or {}
+        if info.get("local"):
+            return {**info, "country": t(self.lang, "local_network")}
+        return info
+
     async def async_geo(self, ip: str) -> dict[str, Any]:
         if not self.geo_enabled:
             return {}
@@ -938,14 +1002,15 @@ class GatekeeperManager:
             and (parse_dt(cached.get("time")) or dt_util.utcnow())
             > dt_util.utcnow() - timedelta(days=30)
         ):
-            return cached
+            return self.geo_view(ip)
         try:
             addr = ip_address(ip)
         except ValueError:
             return {}
         if not addr.is_global:
             info = {
-                "country": "Rete locale",
+                "local": True,
+                "country": None,
                 "country_code": None,
                 "region": None,
                 "city": None,
@@ -959,7 +1024,7 @@ class GatekeeperManager:
                         resp = await session.get(GEO_URL.format(ip=ip))
                         js = await resp.json(content_type=None)
                 except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Geolocalizzazione %s non riuscita: %s", ip, err)
+                    _LOGGER.debug("Geolocation of %s failed: %s", ip, err)
                     return cached or {}
                 finally:
                     await asyncio.sleep(1.5)  # limite del servizio: 45 richieste/minuto
@@ -980,7 +1045,7 @@ class GatekeeperManager:
         while len(cache) > GEO_CACHE_MAX:
             cache.pop(next(iter(cache)))
         self._save()
-        return info
+        return self.geo_view(ip)
 
     @callback
     def _start_geo_fill(self) -> None:
@@ -1009,7 +1074,7 @@ class GatekeeperManager:
         bans = await self.async_refresh_bans()
         content = {
             "gatekeeper_ip": 1,
-            "esportato_il": fmt_local(dt_util.utcnow()),
+            "exported_at": fmt_local(dt_util.utcnow()),
             "whitelist": self.whitelist,
             "bans": [
                 {"ip": b["ip"], "banned_at": b["banned_at_iso"]}
@@ -1024,7 +1089,7 @@ class GatekeeperManager:
                 yaml.safe_dump(content, file, allow_unicode=True, sort_keys=False)
 
         await self.hass.async_add_executor_job(write)
-        self.log("export", None, source, os.path.basename(path))
+        self.log("export", None, source, "note_file", file=os.path.basename(path))
         return {"file": path, "bans": len(bans), "whitelist": len(self.whitelist)}
 
     async def async_import(
@@ -1034,11 +1099,11 @@ class GatekeeperManager:
         try:
             content = await self.hass.async_add_executor_job(_read_yaml, path)
         except yaml.YAMLError as err:
-            raise ValueError(f"file non valido: {err}") from err
+            raise ValueError(f"invalid file: {err}") from err
         if content is None:
             raise FileNotFoundError(path)
         if not isinstance(content, dict):
-            raise ValueError("file non valido")
+            raise ValueError("invalid file")
 
         now = dt_util.utcnow()
         entries: list[tuple[str, datetime | None]] = []
@@ -1081,7 +1146,10 @@ class GatekeeperManager:
             "import",
             None,
             source,
-            f"{os.path.basename(path)}: {len(res['banned'])} ban, {len(new_nets)} reti whitelist",
+            "note_import",
+            file=os.path.basename(path),
+            bans=len(res["banned"]),
+            nets=len(new_nets),
         )
         await self.async_refresh_bans()
         if new_nets:

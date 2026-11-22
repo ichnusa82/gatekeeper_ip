@@ -94,13 +94,61 @@
   "entity": {
     "sensor": {
       "banned_ips": {
-        "name": "IP bannati"
+        "name": "IP bannati",
+        "state_attributes": {
+          "integration": {
+            "name": "Integrazione"
+          },
+          "bans": {
+            "name": "Elenco ban"
+          },
+          "banned": {
+            "name": "IP bannati"
+          },
+          "timed": {
+            "name": "Ban a tempo"
+          },
+          "whitelist": {
+            "name": "Whitelist"
+          },
+          "ip_ban_enabled": {
+            "name": "Blocco IP attivo"
+          },
+          "telegram": {
+            "name": "Avvisi Telegram"
+          }
+        }
       },
       "failed_logins": {
-        "name": "Login falliti 24 ore"
+        "name": "Login falliti 24 ore",
+        "state_attributes": {
+          "integration": {
+            "name": "Integrazione"
+          },
+          "per_ip": {
+            "name": "Tentativi per IP"
+          },
+          "last_ip": {
+            "name": "Ultimo IP"
+          },
+          "last_host": {
+            "name": "Ultimo host"
+          },
+          "last_attempt": {
+            "name": "Ultimo tentativo"
+          }
+        }
       },
       "last_event": {
-        "name": "Ultimo evento"
+        "name": "Ultimo evento",
+        "state_attributes": {
+          "integration": {
+            "name": "Integrazione"
+          },
+          "history": {
+            "name": "Storico"
+          }
+        }
       }
     }
   },
@@ -186,6 +234,37 @@
           "description": "Numero massimo di eventi (1-300)."
         }
       }
+    }
+  },
+  "selector": {
+    "duration": {
+      "options": {
+        "permanent": "Permanente",
+        "1h": "1 ora",
+        "24h": "24 ore",
+        "7d": "7 giorni",
+        "30d": "30 giorni"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Gatekeeper IP non è caricata"
+    },
+    "invalid_network": {
+      "message": "IP o rete non valida: {value}"
+    },
+    "invalid_entry": {
+      "message": "Voce non valida: {entry} (formato: IP oppure IP gg/mm/aaaa hh:mm)"
+    },
+    "no_ip": {
+      "message": "Nessun IP indicato"
+    },
+    "file_not_found": {
+      "message": "File non trovato: {file}"
+    },
+    "invalid_file": {
+      "message": "File non valido: {error}"
     }
   }
 }

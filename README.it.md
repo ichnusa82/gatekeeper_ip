@@ -43,6 +43,9 @@ non permette di bannare un IP a mano dall'interfaccia e per sbloccarlo bisogna m
 Funziona sullo stesso `ip_bans.yaml` usato da Home Assistant: i ban automatici dopo troppi tentativi
 sbagliati continuano a funzionare come prima.
 
+> 🌐 **Completamente tradotta in italiano e inglese**: configurazione, menu, messaggi Telegram, storico e card.
+> La lingua segue quella di Home Assistant (italiano se è impostato in italiano, altrimenti inglese).
+
 ## 📦 Installazione
 
 ### Con HACS (consigliato)
@@ -62,7 +65,7 @@ poi inserisci la whitelist (un IP o una rete per riga). Il valore proposto è `1
 
 > **Requisito:** il blocco IP di Home Assistant deve essere attivo
 > (Impostazioni → Rete → *Blocco degli indirizzi IP*, oppure `ip_ban_enabled: true` nella sezione `http:`).
-> L'attributo `ip_ban_attivo` del sensore *IP bannati* indica se è attivo.
+> L'attributo `ip_ban_enabled` del sensore *IP bannati* indica se è attivo.
 
 ## ⚙️ Menu Configura
 
@@ -90,10 +93,10 @@ A ogni login fallito da un IP **non** in whitelist arriva un messaggio così:
 🕐 21/11/2026 19:06:34
 🌐 IP: 203.0.113.45
 🌍 Safari su iPhone
-📍 Italy (IT) - Olgiate Comasco, Lombardy
-🏢 Fastweb Networks
+📍 Germany (DE) - Frankfurt am Main, Hesse
+🏢 Example Telecom
 📶 Rete mobile
-🔗 /auth/login_flow/c8f6c8c47fff17484de793c4536aa45e
+🔗 /auth/login_flow/0123456789abcdef0123456789abcdef
 🔢 Tentativi questa settimana: 10
 
 [ 🔒 Banna ] [ ⏱ Banna 24 ore ]
@@ -128,11 +131,14 @@ la lista degli IP con bandiera e pulsante **Sblocca**, e gli ultimi eventi.
 
 I nomi delle entità qui sotto sono quelli con Home Assistant in italiano.
 
-| Entità | Stato | Attributi principali |
+| Entità | Stato | Attributi |
 |---|---|---|
-| `sensor.gatekeeper_ip_ip_bannati` | numero di IP bannati | `bans`, `ip_bannati`, `temporanei`, `whitelist`, `ip_ban_attivo` |
-| `sensor.gatekeeper_ip_login_falliti_24_ore` | login falliti nelle ultime 24 ore | `per_ip`, `ultimo_ip`, `ultimo_host`, `ultimo_tentativo` |
-| `sensor.gatekeeper_ip_ultimo_evento` | ultimo ban/sblocco | `storico` (ultimi 40 eventi) |
+| `sensor.gatekeeper_ip_ip_bannati` | numero di IP bannati | `bans` (elenco completo), `banned`, `timed`, `whitelist`, `ip_ban_enabled`, `telegram` |
+| `sensor.gatekeeper_ip_login_falliti_24_ore` | login falliti nelle ultime 24 ore | `per_ip`, `last_ip`, `last_host`, `last_attempt` |
+| `sensor.gatekeeper_ip_ultimo_evento` | ultimo ban/sblocco | `history` (ultimi 40 eventi: `time`, `action`, `ip`, `source`, `note`) |
+
+I nomi degli attributi sono fissi (usali così nei template); nella finestra dell'entità vengono mostrati tradotti
+("IP bannati", "Storico", "Ultimo IP"…).
 
 ## 🛠 Servizi
 

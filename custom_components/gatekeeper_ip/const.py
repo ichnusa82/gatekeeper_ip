@@ -1,7 +1,7 @@
 """Costanti per Gatekeeper IP."""
 
 DOMAIN = "gatekeeper_ip"
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 
 # Opzioni
 CONF_WHITELIST = "whitelist"
@@ -52,33 +52,11 @@ ATTR_DURATION = "duration"
 ATTR_FILENAME = "filename"
 ATTR_LIMIT = "limit"
 
-# Durate proposte nel menu (minuti → etichetta)
-DURATION_CHOICES = {
-    "0": "Permanente",
-    "60": "1 ora",
-    "1440": "24 ore",
-    "10080": "7 giorni",
-    "43200": "30 giorni",
-}
-
-ACTION_LABELS = {
-    "ban": "Bannato",
-    "unban": "Sbloccato",
-    "expired": "Ban scaduto",
-    "ban_prevented": "Ban evitato (whitelist)",
-    "whitelist_add": "Aggiunto alla whitelist",
-    "whitelist_remove": "Tolto dalla whitelist",
-    "export": "Esportazione",
-    "import": "Importazione",
-}
-
-SOURCE_LABELS = {
-    "auto": "automatico",
-    "manual": "manuale",
-    "telegram": "Telegram",
-    "service": "servizio",
-    "card": "card",
-    "scadenza": "scadenza",
-    "whitelist": "whitelist",
-    "import": "importazione",
+# Durate proposte nel menu: chiave tradotta (strings.json → selector.duration) → minuti
+DURATION_OPTIONS = {
+    "permanent": 0,
+    "1h": 60,
+    "24h": 1440,
+    "7d": 10080,
+    "30d": 43200,
 }

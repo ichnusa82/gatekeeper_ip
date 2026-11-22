@@ -14,7 +14,6 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
-    ACTION_LABELS,
     ATTR_DURATION,
     ATTR_FILENAME,
     ATTR_IP,
@@ -30,10 +29,10 @@ from .const import (
     SERVICE_PURGE,
     SERVICE_REMOVE,
     SERVICE_UNBAN,
-    SOURCE_LABELS,
     VERSION,
 )
-from .manager import GatekeeperManager, fmt_local, parse_ip_list, parse_whitelist
+from .manager import GatekeeperManager, history_items, parse_ip_list, parse_whitelist
+from .texts import lang_of
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
         add_extra_js_url(hass, f"{CARD_URL}?v={VERSION}")
     except Exception as err:  # noqa: BLE001
-        _LOGGER.warning("Card non registrata automaticamente: %s", err)
+        _LOGGER.warning("Dashboard card could not be registered automatically: %s", err)
     _async_register_services(hass)
     return True
 
@@ -98,10 +97,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: GatekeeperConfigEntry) 
     return unloaded
 
 
+def _error(key: str, **placeholders: str) -> ServiceValidationError:
+    """Errore tradotto (strings.json → exceptions)."""
+    return ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key=key,
+        translation_placeholders={k: str(v) for k, v in placeholders.items()},
+    )
+
+
 def _manager(hass: HomeAssistant) -> GatekeeperManager:
     entries = hass.config_entries.async_loaded_entries(DOMAIN)
     if not entries:
-        raise ServiceValidationError("Gatekeeper IP non è caricata")
+        raise _error("not_loaded")
     return entries[0].runtime_data
 
 
@@ -109,7 +117,7 @@ def _nets(text: str) -> list[str]:
     try:
         return parse_whitelist(text)
     except ValueError as err:
-        raise ServiceValidationError(f"IP o rete non valida: {text}") from err
+        raise _error("invalid_network", value=text) from err
 
 
 def _async_register_services(hass: HomeAssistant) -> None:
@@ -117,11 +125,9 @@ def _async_register_services(hass: HomeAssistant) -> None:
         try:
             entries = parse_ip_list(call.data[ATTR_IP])
         except ValueError as err:
-            raise ServiceValidationError(
-                f"Voce non valida: {err} (formato: IP oppure IP gg/mm/aaaa hh:mm)"
-            ) from err
+            raise _error("invalid_entry", entry=str(err)) from err
         if not entries:
-            raise ServiceValidationError("Nessun IP indicato")
+            raise _error("no_ip")
         return await _manager(hass).async_ban(
             entries, call.data.get(ATTR_DURATION), source="service"
         )
@@ -155,24 +161,13 @@ def _async_register_services(hass: HomeAssistant) -> None:
         try:
             return await _manager(hass).async_import(call.data.get(ATTR_FILENAME), source="service")
         except FileNotFoundError as err:
-            raise ServiceValidationError(f"File non trovato: {err}") from err
+            raise _error("file_not_found", file=str(err)) from err
         except ValueError as err:
-            raise ServiceValidationError(str(err)) from err
+            raise _error("invalid_file", error=str(err)) from err
 
     async def history(call: ServiceCall) -> dict:
         items = _manager(hass).data["history"][-call.data[ATTR_LIMIT] :]
-        return {
-            "history": [
-                {
-                    "quando": fmt_local(h.get("time")),
-                    "azione": ACTION_LABELS.get(h.get("action"), h.get("action")),
-                    "ip": h.get("ip"),
-                    "origine": SOURCE_LABELS.get(h.get("source"), h.get("source")),
-                    "nota": h.get("note"),
-                }
-                for h in reversed(items)
-            ]
-        }
+        return {"history": history_items(items, lang_of(hass))}
 
     opt = SupportsResponse.OPTIONAL
     hass.services.async_register(DOMAIN, SERVICE_BAN, ban, BAN_SCHEMA, opt)

@@ -33,9 +33,10 @@ from .const import (
     CONF_WHITELIST,
     DEFAULT_EXPORT,
     DOMAIN,
-    DURATION_CHOICES,
+    DURATION_OPTIONS,
 )
 from .manager import parse_ip_list, parse_whitelist
+from .texts import lang_of, t
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,10 +134,10 @@ class GatekeeperOptionsFlow(OptionsFlow):
             return self.async_abort(reason="not_loaded")
         errors: dict[str, str] = {}
         placeholders = {"ips": "", "error": ""}
-        default_ips, default_duration = "", "0"
+        default_ips, default_duration = "", "permanent"
         if user_input is not None:
             default_ips = user_input[CONF_IPS]
-            default_duration = user_input.get(CONF_DURATION, "0")
+            default_duration = user_input.get(CONF_DURATION, "permanent")
             try:
                 entries = parse_ip_list(default_ips)
             except ValueError as err:
@@ -150,13 +151,13 @@ class GatekeeperOptionsFlow(OptionsFlow):
                     errors[CONF_IPS] = "whitelisted"
                     placeholders["ips"] = ", ".join(whitelisted)
                 else:
-                    minutes = int(default_duration or 0)
+                    minutes = DURATION_OPTIONS.get(default_duration, 0)
                     try:
                         await manager.async_ban(
                             entries, timedelta(minutes=minutes) if minutes else None, "manual"
                         )
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.exception("Errore durante il ban manuale")
+                        _LOGGER.exception("Error while banning IPs manually")
                         errors["base"] = "error"
                         placeholders["error"] = _err_text(err)
                     else:
@@ -168,7 +169,8 @@ class GatekeeperOptionsFlow(OptionsFlow):
                 ),
                 vol.Required(CONF_DURATION, default=default_duration): SelectSelector(
                     SelectSelectorConfig(
-                        options=[{"value": k, "label": v} for k, v in DURATION_CHOICES.items()],
+                        options=list(DURATION_OPTIONS),
+                        translation_key="duration",
                         mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
@@ -190,17 +192,18 @@ class GatekeeperOptionsFlow(OptionsFlow):
                 return self._done()
             bans = await manager.async_refresh_bans()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.exception("Errore nello sblocco IP")
+            _LOGGER.exception("Error while unbanning IPs")
             return self.async_abort(
                 reason="error", description_placeholders={"error": _err_text(err)}
             )
         if not bans:
             return self.async_abort(reason="no_bans")
+        lang = lang_of(self.hass)
         options = []
         for b in bans:
-            parts = [f"{b['flag']} {b['ip']}".strip(), b["banned_at"] or "data sconosciuta"]
+            parts = [f"{b['flag']} {b['ip']}".strip(), b["banned_at"] or t(lang, "unknown_date")]
             if b["expires"]:
-                parts.append(f"⏱ fino al {b['expires']}")
+                parts.append("⏱ " + t(lang, "until", date=b["expires"]))
             if b["country"]:
                 parts.append(b["country"] + (f" · {b['isp']}" if b["isp"] else ""))
             options.append({"value": b["ip"], "label": "  —  ".join(parts)})
@@ -251,7 +254,7 @@ class GatekeeperOptionsFlow(OptionsFlow):
             try:
                 res = await manager.async_export(user_input.get(CONF_FILENAME), source="manual")
             except Exception as err:  # noqa: BLE001
-                _LOGGER.exception("Errore esportazione")
+                _LOGGER.exception("Export error")
                 return self.async_abort(
                     reason="error", description_placeholders={"error": _err_text(err)}
                 )
@@ -280,7 +283,7 @@ class GatekeeperOptionsFlow(OptionsFlow):
             except FileNotFoundError:
                 errors[CONF_FILENAME] = "file_not_found"
             except Exception as err:  # noqa: BLE001
-                _LOGGER.exception("Errore importazione")
+                _LOGGER.exception("Import error")
                 errors["base"] = "error"
                 placeholders["error"] = _err_text(err)
             else:

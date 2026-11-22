@@ -94,13 +94,61 @@
   "entity": {
     "sensor": {
       "banned_ips": {
-        "name": "Banned IPs"
+        "name": "Banned IPs",
+        "state_attributes": {
+          "integration": {
+            "name": "Integration"
+          },
+          "bans": {
+            "name": "Ban list"
+          },
+          "banned": {
+            "name": "Banned IPs"
+          },
+          "timed": {
+            "name": "Timed bans"
+          },
+          "whitelist": {
+            "name": "Whitelist"
+          },
+          "ip_ban_enabled": {
+            "name": "IP banning enabled"
+          },
+          "telegram": {
+            "name": "Telegram alerts"
+          }
+        }
       },
       "failed_logins": {
-        "name": "Failed logins 24h"
+        "name": "Failed logins 24h",
+        "state_attributes": {
+          "integration": {
+            "name": "Integration"
+          },
+          "per_ip": {
+            "name": "Attempts per IP"
+          },
+          "last_ip": {
+            "name": "Last IP"
+          },
+          "last_host": {
+            "name": "Last host"
+          },
+          "last_attempt": {
+            "name": "Last attempt"
+          }
+        }
       },
       "last_event": {
-        "name": "Last event"
+        "name": "Last event",
+        "state_attributes": {
+          "integration": {
+            "name": "Integration"
+          },
+          "history": {
+            "name": "History"
+          }
+        }
       }
     }
   },
@@ -186,6 +234,37 @@
           "description": "Maximum number of events (1-300)."
         }
       }
+    }
+  },
+  "selector": {
+    "duration": {
+      "options": {
+        "permanent": "Permanent",
+        "1h": "1 hour",
+        "24h": "24 hours",
+        "7d": "7 days",
+        "30d": "30 days"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Gatekeeper IP is not loaded"
+    },
+    "invalid_network": {
+      "message": "Invalid IP or network: {value}"
+    },
+    "invalid_entry": {
+      "message": "Invalid entry: {entry} (format: IP or IP dd/mm/yyyy hh:mm)"
+    },
+    "no_ip": {
+      "message": "No IP given"
+    },
+    "file_not_found": {
+      "message": "File not found: {file}"
+    },
+    "invalid_file": {
+      "message": "Invalid file: {error}"
     }
   }
 }

@@ -1,28 +1,49 @@
 # Changelog
 
+## 1.2.0
+🇬🇧
+- Fully bilingual: the language follows Home Assistant (Italian, otherwise English) — Telegram alerts and buttons,
+  device description, ban durations, unban list, history, dashboard card, sensor attribute labels,
+  service error messages
+- ⚠️ **Breaking:** sensor attributes renamed to English: `ip_bannati` → `banned`, `temporanei` → `timed`,
+  `ip_ban_attivo` → `ip_ban_enabled`, `ultimo_ip` → `last_ip`, `ultimo_host` → `last_host`,
+  `ultimo_tentativo` → `last_attempt`, `storico` → `history` (items: `time`, `action`, `ip`, `source`, `note`).
+  Update your templates if you used them. The bundled card is already updated.
+- Logs, backup file and `get_history` response keys in English
+- Large attributes are no longer stored in the recorder database
+
+🇮🇹
+- Completamente bilingue: la lingua segue quella di Home Assistant (italiano, altrimenti inglese) — messaggi e
+  pulsanti Telegram, dispositivo, durate, lista di sblocco, storico, card, nomi degli attributi dei sensori,
+  messaggi di errore dei servizi
+- ⚠️ **Attenzione:** attributi dei sensori rinominati in inglese (vedi sopra). Aggiorna i template se li usavi.
+  La card inclusa è già aggiornata.
+- Registro di sistema, file di backup e risposta di `get_history` in inglese
+- Gli attributi più grandi non vengono più salvati nel database dello storico
+
 ## 1.1.1
-- Telegram: dopo aver premuto un pulsante il messaggio ora si aggiorna con l'esito e i pulsanti spariscono
-  (prima Telegram rifiutava la modifica per via dei trattini bassi nel testo, es. `/auth/login_flow`)
+🇬🇧 Telegram: after pressing a button the alert is updated with the result and the buttons are removed.
+
+🇮🇹 Telegram: dopo aver premuto un pulsante il messaggio si aggiorna con l'esito e i pulsanti spariscono.
 
 ## 1.1.0
-- Nuovo messaggio Telegram: ora, browser e dispositivo, paese con regione e città, provider,
-  tipo di rete (mobile, fissa, datacenter/VPN), pagina richiesta, tentativi della settimana
-- Evento `gatekeeper_ip_login_failed` con i nuovi campi `attempts_week`, `device`, `user_agent`,
-  `url`, `country_code`, `region`, `mobile`, `hosting`
-- Paesi in inglese (es. "Italy"), come restituiti da ip-api.com
-- I tentativi falliti restano in memoria 7 giorni (il sensore continua a contare le ultime 24 ore)
+🇬🇧
+- Detailed Telegram alert: time, browser/device, country with region and city, ISP, network type
+  (mobile, fixed, datacenter/VPN), requested URL, attempts this week
+- Telegram: `chat_id` instead of the deprecated `target` (removed in Home Assistant 2026.9)
+- New fields in the `gatekeeper_ip_login_failed` event
+- README in English and Italian
 
-## 1.0.1
-- Telegram: usato `chat_id` al posto di `target`, deprecato e rimosso in Home Assistant 2026.9 (resta come riserva per le versioni più vecchie)
+🇮🇹
+- Messaggio Telegram dettagliato: ora, browser/dispositivo, paese con regione e città, provider, tipo di rete
+  (mobile, fissa, datacenter/VPN), pagina richiesta, tentativi della settimana
+- Telegram: `chat_id` al posto di `target`, deprecato (rimosso in Home Assistant 2026.9)
+- Nuovi campi nell'evento `gatekeeper_ip_login_failed`
+- README in inglese e italiano
 
-## 1.0.0 — prima pubblicazione
-- Whitelist di IP e reti che Home Assistant non banna mai
-- Ban manuale dal menu Configura, dalla card o con il servizio `ban` (data e ora automatiche)
-- Ban a tempo (1 ora, 24 ore, 7 giorni, 30 giorni) con sblocco automatico
-- Sblocco dalla lista degli IP bannati, senza riavvio
-- Avvisi Telegram sui login falliti con pulsanti Banna / Banna 24 ore / Whitelist / Ignora
-- Paese, città e provider degli IP (ip-api.com, disattivabile)
-- Storico di ban, sblocchi, scadenze e modifiche alla whitelist
-- Sensori "IP bannati", "Login falliti 24 ore", "Ultimo evento" ed evento `gatekeeper_ip_login_failed`
-- Card per la dashboard inclusa (`custom:gatekeeper-ip-card`)
-- Esporta / importa backup
+## 1.0.0
+🇬🇧 First release: IP whitelist, manual and timed bans, unban without restart, Telegram alerts with buttons,
+IP geolocation, history, failed-login sensor and event, dashboard card, backup export/import.
+
+🇮🇹 Prima pubblicazione: whitelist IP, ban manuali e a tempo, sblocco senza riavvio, avvisi Telegram con pulsanti,
+posizione degli IP, storico, sensore ed evento dei login falliti, card per la dashboard, backup.

@@ -43,8 +43,8 @@ IP manually from the UI, and unbanning means editing `ip_bans.yaml` and restarti
 It works on the same `ip_bans.yaml` used by Home Assistant: automatic bans after too many failed
 logins keep working as before.
 
-> The user interface is translated in English and Italian. The Telegram alert text and the
-> device description (e.g. "Safari su iPhone") are currently in Italian.
+> 🌐 **Fully translated in English and Italian**: setup, menus, Telegram alerts, history, dashboard card.
+> The language follows your Home Assistant language (Italian if set to Italian, English otherwise).
 
 ## 📦 Installation
 
@@ -65,7 +65,7 @@ then enter the whitelist (one IP or network per line). The suggested value is `1
 
 > **Requirement:** Home Assistant IP banning must be enabled
 > (Settings → Network → *IP address banning*, or `ip_ban_enabled: true` in the `http:` section).
-> The `ip_ban_attivo` attribute of the *Banned IPs* sensor shows whether it is active.
+> The `ip_ban_enabled` attribute of the *Banned IPs* sensor shows whether it is active.
 
 ## ⚙️ Configure menu
 
@@ -89,22 +89,22 @@ Enable them from **Configure → Settings** (Chat ID is optional: empty = defaul
 On every failed login from an IP **not** in the whitelist you get a message like this:
 
 ```
-⚠️ LOGIN FALLITO HOME ASSISTANT
+⚠️ HOME ASSISTANT FAILED LOGIN
 🕐 21/11/2026 19:06:34
 🌐 IP: 203.0.113.45
-🌍 Safari su iPhone
-📍 Italy (IT) - Olgiate Comasco, Lombardy
-🏢 Fastweb Networks
-📶 Rete mobile
-🔗 /auth/login_flow/c8f6c8c47fff17484de793c4536aa45e
-🔢 Tentativi questa settimana: 10
+🌍 Safari on iPhone
+📍 Germany (DE) - Frankfurt am Main, Hesse
+🏢 Example Telecom
+📶 Mobile network
+🔗 /auth/login_flow/0123456789abcdef0123456789abcdef
+🔢 Attempts this week: 10
 
-[ 🔒 Banna ] [ ⏱ Banna 24 ore ]
-[ ✅ Whitelist ] [ 🙈 Ignora ]
+[ 🔒 Ban ] [ ⏱ Ban 24h ]
+[ ✅ Whitelist ] [ 🙈 Ignore ]
 ```
 
 - **🌍 browser and device** and **🔗 requested URL** are read from the Home Assistant log
-- **📶 network type**: mobile, 🏠 fixed line, or 🖥 datacenter / VPN / proxy
+- **📶 network type**: mobile network, 🏠 fixed line, or 🖥 datacenter / VPN / proxy
 - **🔢 attempts**: from the same IP in the last 7 days
 
 When you press a button, the message is updated with the result. To avoid flooding the chat, at
@@ -131,11 +131,13 @@ the list of IPs with flag and **Unban** button, and the latest events.
 
 Entity IDs depend on your Home Assistant language (English shown here).
 
-| Entity | State | Main attributes |
+| Entity | State | Attributes |
 |---|---|---|
-| `sensor.gatekeeper_ip_banned_ips` | number of banned IPs | `bans`, `ip_bannati`, `temporanei`, `whitelist`, `ip_ban_attivo` |
-| `sensor.gatekeeper_ip_failed_logins_24h` | failed logins in the last 24 hours | `per_ip`, `ultimo_ip`, `ultimo_host`, `ultimo_tentativo` |
-| `sensor.gatekeeper_ip_last_event` | last ban/unban | `storico` (last 40 events) |
+| `sensor.gatekeeper_ip_banned_ips` | number of banned IPs | `bans` (full list), `banned`, `timed`, `whitelist`, `ip_ban_enabled`, `telegram` |
+| `sensor.gatekeeper_ip_failed_logins_24h` | failed logins in the last 24 hours | `per_ip`, `last_ip`, `last_host`, `last_attempt` |
+| `sensor.gatekeeper_ip_last_event` | last ban/unban | `history` (last 40 events: `time`, `action`, `ip`, `source`, `note`) |
+
+Attribute names are fixed (use them in templates); their labels in the entity dialog are translated.
 
 ## 🛠 Services
 
@@ -166,7 +168,7 @@ Every failed login fires the `gatekeeper_ip_login_failed` event with:
 | `ip`, `host` | address and host name |
 | `whitelisted` | `true` if the IP is whitelisted |
 | `attempts_24h`, `attempts_week` | attempts from the same IP in the last 24 hours / 7 days |
-| `device`, `user_agent` | e.g. "Safari su iPhone" and the full user agent |
+| `device`, `user_agent` | e.g. "Safari on iPhone" and the full user agent |
 | `url` | requested URL |
 | `country`, `country_code`, `region`, `city` | location |
 | `isp`, `mobile`, `hosting` | ISP, mobile network, datacenter/VPN |
@@ -211,7 +213,7 @@ actions:
 
 ## 📝 Changelog
 
-See the [CHANGELOG](CHANGELOG.md) (in Italian).
+See the [CHANGELOG](CHANGELOG.md) (English and Italian).
 
 ## 📄 License
 
