@@ -407,11 +407,11 @@ class GatekeeperManager:
         async_dispatcher_send(self.hass, SIGNAL_UPDATED)
 
     # ----------------------------------------------------------------- storico
-    @callback
     @property
     def lang(self) -> str:
         return lang_of(self.hass)
 
+    @callback
     def log(
         self,
         action: str,

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+🇬🇧 Fix: the integration failed to load in 1.2.0 ("Invalid handler specified").
+
+🇮🇹 Correzione: nella 1.2.0 l'integrazione non si caricava ("Invalid handler specified").
+
 ## 1.2.0
 🇬🇧
 - Fully bilingual: the language follows Home Assistant (Italian, otherwise English) — Telegram alerts and buttons,
